@@ -94,27 +94,205 @@ dotnet add package Microsoft.EntityFrameworkCore.SqlServer
 
 ### Create `Models/GuestMessage.cs`
 ```csharp
-// TODO: Add full model code here
+using System;
+using System.ComponentModel.DataAnnotations;
+namespace MyFirstAzureWebApp.Models
+{
+    public class GuestMessage
+    {
+        public int Id { get; set; }
+[Required, StringLength(100)]
+        public string UserName { get; set; } = string.Empty;
+[Required, StringLength(500)]
+        public string Message { get; set; } = string.Empty;
+public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    }
+}
+
 ```
 
 ### Create `Data/AppDbContext.cs`
 ```csharp
-// TODO: Add DbContext code here
+using Microsoft.EntityFrameworkCore;
+using MyFirstAzureWebApp.Models;
+namespace MyFirstAzureWebApp.Data
+{
+    public class AppDbContext : DbContext
+    {
+        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+        public DbSet<GuestMessage> Messages => Set<GuestMessage>();
+    }
+}
 ```
 
 ### Update `Program.cs`
 ```csharp
-// TODO: Add EF Core registration code here
+using Microsoft.EntityFrameworkCore;                 // <-- add
+using MyFirstAzureWebApp.Data;                      // <-- add
+var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddRazorPages();
+// Read "DefaultConnection" from config (user-secrets locally, App Service in cloud)
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+var app = builder.Build();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler("/Error");
+    app.UseHsts();
+}
+app.UseHttpsRedirection();
+app.UseStaticFiles();
+app.UseRouting();
+app.UseAuthorization();
+app.MapRazorPages();
+app.Run();
+
 ```
 
 ### Create Razor Page `Pages/Notes/Index.cshtml`
 ```cshtml
-// TODO: Add Razor markup here
+@page
+@model MyFirstAzureWebApp.Pages.Notes.IndexModel
+@{
+    ViewData["Title"] = "Notes";
+}
+
+<h2>Notes</h2>
+
+<form method="post">
+    <div class="mb-3">
+        <label asp-for="Input.UserName" class="form-label"></label>
+        <input asp-for="Input.UserName" class="form-control" />
+        <span asp-validation-for="Input.UserName" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Input.Message" class="form-label"></label>
+        <textarea asp-for="Input.Message" class="form-control"></textarea>
+        <span asp-validation-for="Input.Message" class="text-danger"></span>
+    </div>
+
+    <!-- Add validates; others skip validation -->
+    <button type="submit" asp-page-handler="Add" class="btn btn-primary">Add</button>
+    <button type="submit" asp-page-handler="DeleteByUser" class="btn btn-danger ms-2" formnovalidate
+            title="Deletes all messages for the given username (Message can be empty)">Delete by user</button>
+    <button type="submit" asp-page-handler="Show" class="btn btn-outline-secondary ms-2" formnovalidate>Show messages</button>
+    <button type="submit" asp-page-handler="Hide" class="btn btn-outline-secondary ms-2" formnovalidate>Hide</button>
+</form>
+
+<hr />
+
+@if (Model.ShowList && Model.Items?.Any() == true)
+{
+    <ul class="list-group">
+        @foreach (var m in Model.Items)
+        {
+            <li class="list-group-item">
+                <strong>@m.UserName</strong>: @m.Message
+                <small class="text-muted">(@m.CreatedAt.ToLocalTime())</small>
+            </li>
+        }
+    </ul>
+}
+else if (Model.ShowList)
+{
+    <p>No entries yet.</p>
+}
+
 ```
 
 ### Create Page Model `Pages/Notes/Index.cshtml.cs`
 ```csharp
-// TODO: Add backend logic code here
+  using Microsoft.AspNetCore.Mvc;
+  using Microsoft.AspNetCore.Mvc.RazorPages;
+  using Microsoft.EntityFrameworkCore;
+  using System.ComponentModel.DataAnnotations;
+  using MyFirstAzureWebApp.Data;
+  using MyFirstAzureWebApp.Models;
+  
+  namespace MyFirstAzureWebApp.Pages.Notes
+  {
+      public class IndexModel : PageModel
+      {
+          private readonly AppDbContext _db;
+          private readonly ILogger<IndexModel> _log;
+          public IndexModel(AppDbContext db, ILogger<IndexModel> log) { _db = db; _log = log; }
+  
+          public List<GuestMessage> Items { get; set; } = new();
+          public bool ShowList { get; set; } = true;
+  
+          [BindProperty]
+          public InputModel Input { get; set; } = new();
+  
+          public async Task OnGetAsync()
+          {
+              Items = await _db.Messages.OrderByDescending(x => x.Id).ToListAsync();
+              ShowList = true; // show by default
+          }
+  
+          // Add requires both fields
+          public async Task<IActionResult> OnPostAddAsync()
+          {
+              if (!ModelState.IsValid)
+              {
+                  Items = await _db.Messages.OrderByDescending(x => x.Id).ToListAsync();
+                  ShowList = true;
+                  return Page();
+              }
+  
+              var msg = new GuestMessage { UserName = Input.UserName, Message = Input.Message };
+              _db.Messages.Add(msg);
+              await _db.SaveChangesAsync();
+              _log.LogInformation("Saved message from {User}", Input.UserName);
+  
+              return RedirectToPage();
+          }
+  
+          // Delete by username (message optional)
+          public async Task<IActionResult> OnPostDeleteByUserAsync()
+          {
+              if (string.IsNullOrWhiteSpace(Input.UserName))
+              {
+                  ModelState.AddModelError("Input.UserName", "Username is required to delete.");
+                  Items = await _db.Messages.OrderByDescending(x => x.Id).ToListAsync();
+                  ShowList = true;
+                  return Page();
+              }
+  
+              var toDelete = _db.Messages.Where(m => m.UserName == Input.UserName);
+              int count = await toDelete.CountAsync();
+              _db.Messages.RemoveRange(toDelete);
+              await _db.SaveChangesAsync();
+              _log.LogInformation("Deleted {Count} messages for {User}", count, Input.UserName);
+  
+              return RedirectToPage();
+          }
+  
+          public async Task<IActionResult> OnPostShowAsync()
+          {
+              Items = await _db.Messages.OrderByDescending(x => x.Id).ToListAsync();
+              ShowList = true;
+              return Page();
+          }
+  
+          public IActionResult OnPostHideAsync()
+          {
+              ShowList = false;
+              Items = new();
+              return Page();
+          }
+  
+          public class InputModel
+          {
+              [Required, StringLength(100)]
+              public string UserName { get; set; } = string.Empty;
+  
+              [Required, StringLength(500)]
+              public string Message { get; set; } = string.Empty;
+          }
+      }
+  }
+
 ```
 
 ### Configure Local Settings (User Secrets)
@@ -159,12 +337,156 @@ dotnet add package Microsoft.ApplicationInsights.AspNetCore
 
 **Program.cs changes**
 ```csharp
-// TODO: Add AI setup code
+  using Microsoft.EntityFrameworkCore;                 // <-- add
+  using MyFirstAzureWebApp.Data; 
+  using Microsoft.ApplicationInsights.DependencyCollector;                      // <-- add
+  var builder = WebApplication.CreateBuilder(args);
+  builder.Services.AddRazorPages();
+  // Read "DefaultConnection" from config (user-secrets locally, App Service in cloud)
+  builder.Services.AddDbContext<AppDbContext>(options =>
+      options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+  // Enables auto-collection of requests, dependencies, exceptions, and ILogger traces
+  builder.Services.AddApplicationInsightsTelemetry();
+  // NEW: capture SQL command text in dependencies.data
+  builder.Services.ConfigureTelemetryModule<DependencyTrackingTelemetryModule>((m, _) =>
+  {
+      m.EnableSqlCommandTextInstrumentation = true;
+  });
+  var app = builder.Build();
+  if (!app.Environment.IsDevelopment())
+  {
+      app.UseExceptionHandler("/Error");
+      app.UseHsts();
+  }
+  app.UseHttpsRedirection();
+  app.UseStaticFiles();
+  app.UseRouting();
+  app.UseAuthorization();
+  app.MapRazorPages();
+  app.Run();
+
 ```
 
 **Index.cshtml.cs changes**
 ```csharp
-// TODO: Add TelemetryClient usage
+  using Microsoft.AspNetCore.Mvc;
+  using Microsoft.AspNetCore.Mvc.RazorPages;
+  using Microsoft.EntityFrameworkCore;
+  using System.ComponentModel.DataAnnotations;
+  using MyFirstAzureWebApp.Data;
+  using MyFirstAzureWebApp.Models;
+  using Microsoft.ApplicationInsights; // Added for telemetry
+  
+  namespace MyFirstAzureWebApp.Pages.Notes
+  {
+      public class IndexModel : PageModel
+      {
+          private readonly AppDbContext _db;
+          private readonly ILogger<IndexModel> _log;
+          private readonly TelemetryClient _telemetry; // Added
+  
+          public IndexModel(AppDbContext db, ILogger<IndexModel> log, TelemetryClient telemetry)
+          {
+              _db = db;
+              _log = log;
+              _telemetry = telemetry;
+          }
+  
+          public List<GuestMessage> Items { get; set; } = new();
+          public bool ShowList { get; set; } = true;
+  
+          [BindProperty]
+          public InputModel Input { get; set; } = new();
+  
+          public async Task OnGetAsync()
+          {
+              Items = await _db.Messages.OrderByDescending(x => x.Id).ToListAsync();
+              ShowList = true; // show by default
+          }
+  
+          // Add requires both fields
+          public async Task<IActionResult> OnPostAddAsync()
+          {
+              if (!ModelState.IsValid)
+              {
+                  Items = await _db.Messages.OrderByDescending(x => x.Id).ToListAsync();
+                  ShowList = true;
+                  return Page();
+              }
+  
+              var msg = new GuestMessage { UserName = Input.UserName, Message = Input.Message };
+              _db.Messages.Add(msg);
+              await _db.SaveChangesAsync();
+  
+              _log.LogInformation("Saved message from {User}", Input.UserName);
+  
+              // Track custom event for adding a note
+              _telemetry.TrackEvent("NoteAdded", new Dictionary<string, string?>
+              {
+                  ["UserName"] = Input.UserName
+              });
+  
+              return RedirectToPage();
+          }
+  
+          // Delete by username (message optional)
+          public async Task<IActionResult> OnPostDeleteByUserAsync()
+          {
+              if (string.IsNullOrWhiteSpace(Input.UserName))
+              {
+                  ModelState.AddModelError("Input.UserName", "Username is required to delete.");
+                  Items = await _db.Messages.OrderByDescending(x => x.Id).ToListAsync();
+                  ShowList = true;
+                  return Page();
+              }
+  
+              var toDelete = _db.Messages.Where(m => m.UserName == Input.UserName);
+              int count = await toDelete.CountAsync();
+              _db.Messages.RemoveRange(toDelete);
+              await _db.SaveChangesAsync();
+  
+              _log.LogInformation("Deleted {Count} messages for {User}", count, Input.UserName);
+  
+              // Track custom event + metric for deletion
+              _telemetry.TrackEvent(
+                  "NotesDeletedByUser",
+                  new Dictionary<string, string?> { ["UserName"] = Input.UserName },
+                  new Dictionary<string, double> { ["DeletedCount"] = count });
+  
+              return RedirectToPage();
+          }
+  
+          public async Task<IActionResult> OnPostShowAsync()
+          {
+              Items = await _db.Messages.OrderByDescending(x => x.Id).ToListAsync();
+              ShowList = true;
+  
+              // Track event with metric for showing notes
+              _telemetry.TrackEvent("NotesShown", null, new Dictionary<string, double>
+              {
+                  ["ItemCount"] = Items.Count
+              });
+  
+              return Page();
+          }
+  
+          public IActionResult OnPostHideAsync()
+          {
+              ShowList = false;
+              Items = new();
+              return Page();
+          }
+  
+          public class InputModel
+          {
+              [Required, StringLength(100)]
+              public string UserName { get; set; } = string.Empty;
+  
+              [Required, StringLength(500)]
+              public string Message { get; set; } = string.Empty;
+          }
+      }
+}
 ```
 
 ### Configure Connection Strings
