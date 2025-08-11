@@ -4,15 +4,10 @@
 1. [Prerequisites](#prerequisites)
 2. [Exercise 1 – Create an App Service in Azure](#exercise-1--create-an-app-service-in-azure)
 3. [Exercise 2 – Create ASP.NET Core 8.0 Application](#exercise-2--create-aspnet-core-80-application)
-4. [Exercise 3 – Deploy Your First App to Azure App Service using VS Code](#exercise-3--deploy-your-first-app-to-azure-app-service-using-vs-code)
+4. [Exercise 3 – Deploy Your First Application to Azure App Service](#exercise-3--deploy-your-first-application-to-azure-app-service)
 5. [Exercise 4 – Create a Basic Notes Application with SQL Database Integration](#exercise-4--create-a-basic-notes-application-with-sql-database-integration)
-6. [Exercise 5 – Razor Page UI and Backend Logic](#exercise-5--razor-page-ui-and-backend-logic)
-7. [Step 7 – Configure Local App Settings (User Secrets)](#step-7--configure-local-app-settings-user-secrets)
-8. [Step 8 – Configure Azure App Service Settings](#step-8--configure-azure-app-service-settings)
-9. [Step 9 – Deploy to Azure App Service](#step-9--deploy-to-azure-app-service)
-10. [Lab 03 – Application Insights Integration](#lab-03--application-insights-integration)
-11. [Testing Telemetry](#testing-telemetry)
-12. [Deploy to Slots and Switch Slots](#deploy-to-slots-and-switch-slots)
+6. [Exercise 5 – Integrate Application Insights](#exercise-5--integrate-application-insights)
+7. [Exercise 6 – Deploy to Slots and Swap Slots](#exercise-6--deploy-to-slots-and-swap-slots)
 
 ---
 
@@ -47,6 +42,7 @@ Before starting this lab, ensure the following tools are installed and set up on
 ---
 
 ## Exercise 1 – Create an App Service in Azure
+
 Follow your instructor for this exercise.
 
 ---
@@ -68,7 +64,7 @@ dotnet publish -c Release -o ./publish
 
 ---
 
-## Exercise 3 – Deploy Your First App to Azure App Service using VS Code
+## Exercise 3 – Deploy Your First Application to Azure App Service
 
 1. Open your project in VS Code.
 2. Sign in to Azure (`Ctrl+Shift+P` → **Azure: Sign In**).
@@ -81,84 +77,76 @@ dotnet publish -c Release -o ./publish
 
 ## Exercise 4 – Create a Basic Notes Application with SQL Database Integration
 
-Includes:
-- Install `Microsoft.EntityFrameworkCore.SqlServer`
-- Create `Models/GuestMessage.cs`
-- Create `Data/AppDbContext.cs`
-- Update `Program.cs` with EF Core and connection string registration.
+This exercise covers:
+- Installing EF Core SQL Server provider
+- Creating the data model
+- Creating the DbContext
+- Wiring up EF Core and connection strings
+- Adding Razor Pages for UI
+- Configuring local settings securely
+- Configuring Azure App Service settings
+- Deploying to Azure
 
+### Install SQL Server provider
 ```bash
 dotnet add package Microsoft.EntityFrameworkCore.SqlServer
 ```
 
-**GuestMessage.cs**
+### Create `Models/GuestMessage.cs`
 ```csharp
-// Full model code here...
+// TODO: Add full model code here
 ```
 
-**AppDbContext.cs**
+### Create `Data/AppDbContext.cs`
 ```csharp
-// Full context code here...
+// TODO: Add DbContext code here
 ```
 
-**Program.cs changes**
+### Update `Program.cs`
 ```csharp
-// EF Core registration snippet here...
+// TODO: Add EF Core registration code here
 ```
 
----
-
-## Exercise 5 – Razor Page UI and Backend Logic
-
-**Index.cshtml**
+### Create Razor Page `Pages/Notes/Index.cshtml`
 ```cshtml
-// Full Razor Page markup...
+// TODO: Add Razor markup here
 ```
 
-**Index.cshtml.cs**
+### Create Page Model `Pages/Notes/Index.cshtml.cs`
 ```csharp
-// Full backend logic code...
+// TODO: Add backend logic code here
 ```
 
----
-
-## Step 7 – Configure Local App Settings (User Secrets)
-
+### Configure Local Settings (User Secrets)
 ```bash
 cd MyFirstAzureWebApp
 dotnet user-secrets init
 dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Server=tcp:<server>.database.windows.net,..."
 ```
 
----
-
-## Step 8 – Configure Azure App Service Settings
-
+### Configure Azure App Service Settings
 - **SQL Firewall:** Enable *Allow Azure services* or add outbound IPs.
 - **App Service → Configuration → Connection strings:**
   - Name: `DefaultConnection`
   - Type: `SQLAzure`
   - Value: your connection string.
 
----
-
-## Step 9 – Deploy to Azure App Service
-
+### Deploy the Notes App to Azure
 ```bash
 dotnet publish -c Release -o ./publish
 ```
-
-Deploy via VS Code:
-- Right-click `publish` folder → **Deploy to Web App…**
-
-Test:
-```
-https://<app>.azurewebsites.net/Notes
-```
+Deploy via VS Code → Right-click `publish` folder → **Deploy to Web App…**
 
 ---
 
-## Lab 03 – Application Insights Integration
+## Exercise 5 – Integrate Application Insights
+
+This exercise covers:
+- Creating an Application Insights resource
+- Adding AI SDK to the app
+- Updating `Program.cs` for telemetry
+- Injecting and using `TelemetryClient` in the Notes app
+- Configuring connection strings locally and in Azure
 
 ### Create Application Insights
 - Azure Portal → Create resource → Application Insights.
@@ -171,12 +159,12 @@ dotnet add package Microsoft.ApplicationInsights.AspNetCore
 
 **Program.cs changes**
 ```csharp
-// App Insights setup code...
+// TODO: Add AI setup code
 ```
 
 **Index.cshtml.cs changes**
 ```csharp
-// TelemetryClient injection and TrackEvent usage...
+// TODO: Add TelemetryClient usage
 ```
 
 ### Configure Connection Strings
@@ -186,20 +174,13 @@ dotnet user-secrets set "ApplicationInsights:ConnectionString" "<your-connection
 
 Set in Azure App Service → Configuration.
 
----
-
-## Testing Telemetry
-
-- Generate traffic by browsing `/Notes`.
-- View data in Azure Portal:
-  - Live Metrics
-  - Transaction Search
-  - Application Map
-- Use Kusto queries for requests, dependencies, events.
+### Test Telemetry
+- Generate traffic
+- Use Live Metrics, Transaction Search, and Application Map in Azure Portal.
 
 ---
 
-## Deploy to Slots and Switch Slots
+## Exercise 6 – Deploy to Slots and Swap Slots
 
 1. Make a visible change (e.g., add **STAGING VERSION** text).
 2. Azure Portal → App Service → Deployment slots → Add Slot → `stage`.
